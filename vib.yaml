@@ -1,0 +1,72 @@
+# This file is used to build a VanillaOS image using VIB.
+name: VanillaOS minimal
+id: VanillaOS-minimal
+stages:
+  - id: build
+    base: debian:sid-slim
+    singlelayer: false
+    labels:
+      maintainer: Thomas Brugman
+    args:
+      DEBIAN_FRONTEND: noninteractive
+    runs:
+      commands:
+        - echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommends
+    modules:
+      - name: update
+        type: shell
+        commands:
+          - apt update || { echo 'Failed to update APT'; exit 1; }
+      - name: vib
+        type: go
+        source:
+          type: git
+          url: https://github.com/vanilla-os/vib
+          branch: main
+          commit: latest
+        buildVars:
+          GO_OUTPUT_BIN: /usr/bin/vib
+        modules:
+          - name: install-dependencies
+            type: apt
+            source:
+              packages:
+                - golang
+                - ca-certificates
+                - flatpak
+                - qemu
+                - qemu-kvm
+                - libvirt-daemon-system
+                - libvirt-clients
+                - virt-manager
+                - gnome-boxes
+                - gnome-shell-extensions
+                - gnome-shell-extension-appindicator
+          - name: add-flathub
+            type: shell
+            commands:
+              - flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo || { echo 'Failed to add flathub'; exit 1; }
+          - name: install-flatpaks
+            type: shell
+            commands:
+              - |
+                for app in com.google.Chrome com.visualstudio.code it.mijorus.gearlever com.jeffser.Alpaca com.mattjakeman.ExtensionManager; do
+                  flatpak install -y flathub "$app" || { echo "Failed to install $app"; exit 1; }
+                done
+          - name: install-gnome-shell-extensions
+            type: shell
+            commands:
+              - apt install -y gnome-shell-extensions || { echo 'Failed to install gnome-shell-extensions'; exit 1; }
+              - |
+                for extension in dash-to-dock appindicator blur-my-shell; do
+                  wget -O "/tmp/$extension.zip" "https://github.com/${extension}/archive/refs/heads/main.zip" || { echo "Failed to download $extension"; exit 1; }
+                  unzip -d /usr/share/gnome-shell/extensions/ "/tmp/$extension.zip" || { echo "Failed to unzip $extension"; exit 1; }
+                  rm "/tmp/$extension.zip"
+                done
+          - name: activate-extensions
+            type: shell
+            commands:
+              - |
+                for extension in dash-to-dock@gmx.de appindicator@ubuntu.com blur-my-shell@aunor.github.com; do
+                  gnome-extensions enable "$extension" || { echo "Failed to enable $extension"; exit 1; }
+                done
