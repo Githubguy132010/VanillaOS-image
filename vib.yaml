@@ -1,4 +1,5 @@
-# This file is used to build a VanillaOS image using VIB.
+# vib
+base: ghcr.io/vanilla-os/pico:main
 name: VanillaOS minimal
 id: VanillaOS-minimal
 stages:
@@ -26,47 +27,25 @@ stages:
           commit: latest
         buildVars:
           GO_OUTPUT_BIN: /usr/bin/vib
-        modules:
-          - name: install-dependencies
-            type: apt
-            source:
-              packages:
-                - golang
-                - ca-certificates
-                - flatpak
-                - qemu
-                - qemu-kvm
-                - libvirt-daemon-system
-                - libvirt-clients
-                - virt-manager
-                - gnome-boxes
-                - gnome-shell-extensions
-                - gnome-shell-extension-appindicator
-          - name: add-flathub
-            type: shell
-            commands:
-              - flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo || { echo 'Failed to add flathub'; exit 1; }
-          - name: install-flatpaks
-            type: shell
-            commands:
-              - |
-                for app in com.google.Chrome com.visualstudio.code it.mijorus.gearlever com.jeffser.Alpaca com.mattjakeman.ExtensionManager; do
-                  flatpak install -y flathub "$app" || { echo "Failed to install $app"; exit 1; }
-                done
-          - name: install-gnome-shell-extensions
-            type: shell
-            commands:
-              - apt install -y gnome-shell-extensions || { echo 'Failed to install gnome-shell-extensions'; exit 1; }
-              - |
-                for extension in dash-to-dock appindicator blur-my-shell; do
-                  wget -O "/tmp/$extension.zip" "https://github.com/${extension}/archive/refs/heads/main.zip" || { echo "Failed to download $extension"; exit 1; }
-                  unzip -d /usr/share/gnome-shell/extensions/ "/tmp/$extension.zip" || { echo "Failed to unzip $extension"; exit 1; }
-                  rm "/tmp/$extension.zip"
-                done
-          - name: activate-extensions
-            type: shell
-            commands:
-              - |
-                for extension in dash-to-dock@gmx.de appindicator@ubuntu.com blur-my-shell@aunor.github.com; do
-                  gnome-extensions enable "$extension" || { echo "Failed to enable $extension"; exit 1; }
-                done
+      - name: install-dependencies
+        type: shell
+        commands:
+          - apt install -y golang ca-certificates flatpak qemu qemu-kvm libvirt-daemon-system libvirt-clients virt-manager gnome-boxes gnome-shell-extensions gnome-shell-extension-appindicator
+      - name: add-flathub
+        type: shell
+        commands:
+          - flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo || { echo 'Failed to add flathub'; exit 1; }
+      - name: install-flatpaks
+        type: shell
+        commands:
+          - |
+            for app in com.google.Chrome com.visualstudio.code it.mijorus.gearlever com.jeffser.Alpaca com.mattjakeman.ExtensionManager; do
+              flatpak install -y flathub "$app" || { echo "Failed to install $app"; exit 1; }
+            done
+      - name: activate-extensions
+        type: shell
+        commands:
+          - |
+            for extension in dash-to-dock@gmx.de appindicator@ubuntu.com blur-my-shell@aunor.github.com; do
+              gnome-extensions enable "$extension" || { echo "Failed to enable $extension"; exit 1; }
+            done
